@@ -15,7 +15,7 @@ function generateShortCode(originalUrl){
 const createShortUrl = async (req,res)=>{
     const userId = req.user._id;
     const {originalUrl} = req.body;
-
+     
     // - ! Develop a nique shortcode generate function-
     const shortCode = generateShortCode(originalUrl);
     const shortUrl = `${process.env.SHORT_URL_URI}/${shortCode}`;
@@ -23,9 +23,14 @@ const createShortUrl = async (req,res)=>{
     try{
         const url = await Url.create({userId,originalUrl,shortCode,shortUrl});
         if(url){
+            const {_id,shortUrl,originalUrl,createdAt,clickCount,isActive} = url;
             res.status(201).json({
+                _id,
+                originalUrl,
                 shortUrl,
-                success:true
+                createdAt,
+                clickCount,
+                isActive
         });
         }
     }catch(error){
@@ -39,7 +44,7 @@ const createShortUrl = async (req,res)=>{
 const getUserUrls = async (req,res)=>{
     const userId = req.user._id;
     try {
-        const urls = await Url.find({userId});
+        const urls = await Url.find({userId},{__v: 0 ,updatedAt:0,userId:0,shortCode:0}).sort({ createdAt: -1 }).lean();
         res.status(200).json({
             allUrls:urls
         })
@@ -50,6 +55,7 @@ const getUserUrls = async (req,res)=>{
 
 // @route POST /api/urls/:id
 const deleteUrl = async (req,res)=>{
+    const userId = req.user._id;
     const _id = req.params.id;
     if(!_id){
        return res.status(400).json({
@@ -58,12 +64,19 @@ const deleteUrl = async (req,res)=>{
        })
     }
     try {
-        const result = await Url.findByIdAndDelete({_id});
-        if(result){
+        const deletedDoc = await Url.findOneAndDelete({_id,userId});
+
+        
+        if (!deletedDoc) {
+          return res.status(404).json({ message: 'Document not found or unauthorized' });
+        }
+
+        if(deletedDoc){
             res.status(200).json({
                 success:true,
                 msg:"Successfully deleted",
-                success:"true"
+                success:"true",
+                data:deletedDoc
             });
         }
 
@@ -72,14 +85,18 @@ const deleteUrl = async (req,res)=>{
     }
 }
 
-// @route POST /api/urls/:id
+// @route PUT /api/urls/:id
 const updateUrl = async (req,res)=>{
 
     const {newUrl} = req.body;
     const _id = req.params.id;
-
+    const userId = req.user._id;
+    console.log(newUrl,_id,userId);
     try {
         const result = await Url.findById(_id);
+        if(result.userId.toString()!==userId.toString()){
+              return res.status(403).json({ message: 'Unauthorized to modify this document' });
+        }
         result.originalUrl = newUrl;
         await result.save();
 
