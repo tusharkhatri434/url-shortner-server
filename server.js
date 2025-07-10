@@ -20,9 +20,9 @@ app.get("/",(req,res)=>{
 });
 
 app.use("/",urlRedirectRoutes);
+app.use("/api/analytics",analyticsRoutes);
 app.use("/api/auth",authRoutes);
 app.use("/api/urls",urlRoutes);
-app.use("/api/analytics",analyticsRoutes);
 
 app.listen(process.env.PORT || 6000,()=>{
     console.log(`Application running on PORT : ${process.env.PORT || 6000}`)
